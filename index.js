@@ -197,7 +197,7 @@ function animate() {
     player.velocity.x = 0;
   }
 
-  //spauning bullets
+  //Spawning grid and moving grid
   gridsArray.forEach((grid, gridIdx) => {
     grid.update();
     for (i = grid.invaders.length - 1; i >= 0; i--) {
@@ -211,23 +211,25 @@ function animate() {
         if (bulletHitsInvader(bullet, invader)) {
           grid.invaders.splice(i, 1);
           BulletArray.splice(j, 1);
-          console.log(grid.invaders.length, grid.invaders);
-          //changing grid length if far invaders are removed
+
+          //changing grid width if far invaders are removed
           if (grid.invaders.length > 0) {
             const firstIn = grid.invaders[0];
             const lastIn = grid.invaders[grid.invaders.length - 1];
             grid.width = lastIn.position.x - firstIn.position.x + 100;
+
           } else if (grid.invaders.length == 0) {
+
             //removing grid if all invader is removed
-            console.log(gridsArray.length);
             gridsArray.splice(gridIdx, 1);
           }
         }
       }
     }
   });
-
+  
   BulletArray.forEach((bullet, index) => {
+    // removing bullets
     if (bullet.position.y + bullet.radius < 0) {
       BulletArray.splice(index, 1);
     } else {
@@ -235,9 +237,11 @@ function animate() {
     }
   });
 
+
   // render
   player.update();
 
+  //Spawning invaders
   if (frames % randomInterval === 0) {
     gridsArray.push(
       new Grid({ velocity: { x: Math.floor(Math.random()) + 10 } }),
