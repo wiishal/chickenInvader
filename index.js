@@ -9,6 +9,7 @@ const loadingScreen = document.getElementById("loading");
 const images = {
   player: "./assets/jet.png",
   invader: "./assets/chicken.png",
+  egg: "./assets/egg.png",
 };
 
 const loadedImages = {};
@@ -49,6 +50,8 @@ class Player {
     this.speed = 15;
 
     this.img = loadedImages.player;
+    this.width = this.img.width * 0.1;
+    this.height = this.img.height * 0.1;
   }
 
   update() {
@@ -71,33 +74,41 @@ class Player {
   }
 
   draw() {
-      c.drawImage(
-        this.img,
-        this.position.x,
-        this.position.y,
-        this.width,
-        this.height,
-      );
+    c.drawImage(
+      this.img,
+      this.position.x,
+      this.position.y,
+      this.width,
+      this.height,
+    );
   }
 }
 
 class Eggs {
   constructor({ position }) {
-    this.position = position;
+    this.position = {
+      x: position.x,
+      y: 100,
+    };
     this.velocity = {
       x: 0,
-      y: 15,
+      y: 5,
     };
-    this.radius = 5;
+    this.radius = 10;
     this.speed = 10;
+    this.width = 50;
+    this.height = 30;
+    this.img = loadedImages.egg;
   }
 
   draw() {
-    c.beginPath();
-    c.arc(this.position.x, this.position.y, this.radius, 0, Math.PI * 2);
-    c.fillStyle = "green";
-    c.fill();
-    c.closePath();
+    c.drawImage(
+      this.img,
+      this.position.x - this.width / 2, 
+      this.position.y - this.height / 2,
+      this.width,
+      this.height,
+    );
   }
 
   update() {
@@ -138,7 +149,7 @@ class Invader {
     this.position = { ...position };
     this.velocity = { x: 0, y: 0 };
 
-    this.img = loadedImages.invader; 
+    this.img = loadedImages.invader;
     this.width = this.img.width * 0.1;
     this.height = this.img.height * 0.1;
   }
@@ -155,7 +166,7 @@ class Invader {
       this.position.x,
       this.position.y,
       this.width,
-      this.height
+      this.height,
     );
   }
 }
@@ -213,14 +224,17 @@ function bulletHitsInvader(bullet, invader) {
     bullet.position.y - bullet.radius <= invader.position.y + invader.height
   );
 }
-let player; // declare only
 
-// const player = new Player();
-const gridsArray = [];
-const BulletArray = [];
-const EggsArray = [];
+function eggsHitsPlayer(egg, player) {
+  return (
+    egg.position.x + egg.radius >= player.position.x &&
+    egg.position.x - egg.radius <= player.position.x + player.width &&
+    egg.position.y + egg.radius >= player.position.y &&
+    egg.position.y - egg.radius <= player.position.y + player.height
+  );
+}
 
-//keys ====================================================================
+// ============================= KEYS =======================================
 
 const keys = {
   ArrowLeft: {
@@ -236,88 +250,123 @@ const keys = {
     pressed: false,
   },
 };
+
+let gamePaused = false;
+let player;
+const gridsArray = [];
+const BulletArray = [];
+const EggsArray = [];
+
 let frames = 0;
 let randomInterval = Math.floor(Math.random() * 500 + 50);
+let eggInterval = 50;
+let gameOver = false;
 
-//game loop ====================================================================
-
+// ================================= GAME LOOP ===================================
 function animate() {
-  requestAnimationFrame(animate);
+  if (!gameOver) requestAnimationFrame(animate);
 
   // clear
   c.clearRect(0, 0, canvas.width, canvas.height);
 
-  // update logic
+  // DRAWING EVERYTHING
+  gridsArray.forEach((grid) => {
+    grid.invaders.forEach((invader) => invader.draw());
+  });
 
-  // reseting velocity of player every frame
+  BulletArray.forEach((bullet) => bullet.draw());
+  EggsArray.forEach((egg) => egg.draw());
+  player.draw();
+
+  // USE OVERLAY (visual only)
+  if (gamePaused) {
+    c.fillStyle = "rgba(0,0,0,0.4)";
+    c.fillRect(0, 0, canvas.width, canvas.height);
+    c.fillStyle = "white";
+    c.font = "40px sans-serif";
+    c.fillText("PAUSED", canvas.width / 2 - 70, canvas.height / 2);
+    return;
+  }
+
+  if (gameOver) return;
+
+  // ================= UPDATE LOGIC =================
+
   player.velocity.x = 0;
   player.velocity.y = 0;
 
-  // horizontal movement
-  if (keys.ArrowLeft.pressed) {
-    player.velocity.x = -player.speed;
-  }
-  if (keys.ArrowRight.pressed) {
-    player.velocity.x = player.speed;
-  }
-  // vertical movement
-  if (keys.ArrowUp.pressed) {
-    player.velocity.y = -player.speed;
-  }
-  if (keys.ArrowDown.pressed) {
-    player.velocity.y = player.speed;
-  }
+  if (keys.ArrowLeft.pressed) player.velocity.x = -player.speed;
+  if (keys.ArrowRight.pressed) player.velocity.x = player.speed;
+  if (keys.ArrowUp.pressed) player.velocity.y = -player.speed;
+  if (keys.ArrowDown.pressed) player.velocity.y = player.speed;
 
-  if (gridsArray.length <= 0) {
+  player.update();
+
+  if (gridsArray.length === 0) {
     gridsArray.push(new Grid());
   }
 
-  //Spawning grid and moving grid
   gridsArray.forEach((grid, gridIdx) => {
     grid.update();
-    for (i = grid.invaders.length - 1; i >= 0; i--) {
+
+    if (frames % eggInterval === 0 && grid.invaders.length > 0) {
+      const randomInvader =
+        grid.invaders[Math.floor(Math.random() * grid.invaders.length)];
+
+      EggsArray.push(
+        new Eggs({
+          position: {
+            x: randomInvader.position.x + randomInvader.width / 2,
+            y: randomInvader.position.y + randomInvader.height,
+          },
+        }),
+      );
+    }
+
+    for (let i = grid.invaders.length - 1; i >= 0; i--) {
       const invader = grid.invaders[i];
       invader.update({ velocity: grid.velocity });
 
-      for (j = BulletArray.length - 1; j >= 0; j--) {
+      for (let j = BulletArray.length - 1; j >= 0; j--) {
         const bullet = BulletArray[j];
-
-        //removing bullets and invaders
         if (bulletHitsInvader(bullet, invader)) {
           grid.invaders.splice(i, 1);
           BulletArray.splice(j, 1);
-
-          //changing grid width if far invaders are removed
-          if (grid.invaders.length == 0) {
-            gridsArray.splice(gridIdx, 1);
-          }
         }
       }
     }
-  });
 
-  BulletArray.forEach((bullet, index) => {
-    // removing bullets
-    if (bullet.position.y + bullet.radius < 0) {
-      BulletArray.splice(index, 1);
-    } else {
-      bullet.update();
+    if (grid.invaders.length === 0) {
+      gridsArray.splice(gridIdx, 1);
     }
   });
 
-  // render
-  player.update();
+  BulletArray.forEach((bullet, i) => {
+    if (bullet.position.y + bullet.radius < 0) {
+      BulletArray.splice(i, 1);
+    } else bullet.update();
+  });
+
+  EggsArray.forEach((egg, i) => {
+    if (egg.position.y > canvas.height) {
+      EggsArray.splice(i, 1);
+    } else {
+      egg.update();
+      if (eggsHitsPlayer(egg, player)) gameOver = true;
+    }
+  });
+
+  frames++;
 }
 
-//starting =====================================================================
+// ================================ STARTING =====================================
 loadImages(() => {
   loadingScreen.style.display = "none";
-  player = new Player();   // ✅ SAFE now
+  player = new Player();
   animate();
 });
 
-
-//listners =======================================================================
+//==================================== LISTENER ===================================
 window.addEventListener("keydown", ({ key }) => {
   switch (key) {
     case "ArrowLeft":
@@ -333,7 +382,10 @@ window.addEventListener("keydown", ({ key }) => {
       keys.ArrowDown.pressed = true;
       break;
     case " ":
+      console.log(EggsArray.length);
       break;
+    case "Escape":
+      gamePaused = !gamePaused;
   }
 });
 
