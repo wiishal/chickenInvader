@@ -299,6 +299,7 @@ function animate() {
 
 //starting =====================================================================
 player.img.onload = () => {
+  console.log("starting game....");
   animate();
 };
 
