@@ -310,7 +310,7 @@ function gameOverScreen() {
   c.fillRect(0, 0, canvas.width, canvas.height);
   c.fillStyle = "white";
   c.font = "40px sans-serif";
-  c.fillText(`SCORE ${score}`, canvas.width / 2 - 100, canvas.height / 2 - 200);
+  c.fillText(`SCORE ${score}`, canvas.width / 2 - 100, canvas.height / 2 - 100);
 
   c.fillText("GAME OVER", canvas.width / 2 - 70, canvas.height / 2);
   c.fillText(
