@@ -337,7 +337,6 @@ const keys = {
   },
 };
 
-
 // ================================= CONSTANTS ===================================
 
 let gamePaused = false;
@@ -351,14 +350,12 @@ let eggInterval = 50;
 let game = { over: false, active: true, pause: false };
 let player;
 
-
-
 // ================================= RESTART ===================================
 
 function resetGame() {
   score = 0;
   scoreEl.textContent = "Score: 0";
-
+  Object.values(keys).forEach((key) => (key.pressed = false));
   player = new Player();
   player.opacity = 1;
 
