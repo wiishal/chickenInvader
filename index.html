@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -9,57 +9,30 @@
       href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap"
       rel="stylesheet"
     />
-
-    <style>
-      * {
-        box-sizing: border-box;
-      }
-
-      body {
-        margin: 0;
-        overflow: hidden;
-        /* background: black; */
-      }
-
-      /* Loading screen */
-      #loading {
-        position: fixed;
-        inset: 0;
-        background: black;
-        color: white;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 24px;
-        font-family: "Press Start 2P", monospace;
-        z-index: 10;
-      }
-
-      /* Score HUD */
-      #score {
-        position: fixed;
-        top: 16px;
-        left: 16px;
-        z-index: 1;
-
-        color: black;
-        font-size: 20px;
-        letter-spacing: 2px;
-        font-family: "Press Start 2P", monospace;
-
-        user-select: none;
-        pointer-events: none;
-      }
-
-      canvas {
-        display: block;
-      }
-    </style>
+    <link rel="stylesheet" href="index.css" />
   </head>
 
   <body>
     <!-- Loading overlay -->
     <div id="loading">Loading game…</div>
+
+    <div id="startGameScreen">
+      <div id="playGameDiv">
+        <h1>Chicken Invaders</h1>
+
+        <div class="instructions">
+          <p>HOW TO PLAY</p>
+          <ul>
+            <li>⬅️ ➡️ : Move Ship</li>
+            <li>Space : Shoot</li>
+            <li>Avoid enemy eggs</li>
+            <li>Destroy chickens to score</li>
+          </ul>
+        </div>
+
+        <button class="playBtn" id="playBtn">PLAY</button>
+      </div>
+    </div>
 
     <!-- Score HUD -->
     <div id="score">Score: 0</div>

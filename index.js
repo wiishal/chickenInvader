@@ -6,7 +6,10 @@ canvas.height = innerHeight;
 
 const loadingScreen = document.getElementById("loading");
 const scoreEl = document.getElementById("score");
+const startGameScreenEl = document.getElementById("startGameScreen");
+const playBtn = document.getElementById("playBtn");
 
+playBtn.addEventListener("click", startGame);
 let score = 0;
 
 function addScore(points = 10) {
@@ -18,10 +21,12 @@ const images = {
   player: "./assets/jet.png",
   invader: "./assets/chicken.png",
   egg: "./assets/egg.png",
+  silverEgg: "./assets/silverEgg.png",
 };
 
 const loadedImages = {};
 let loadedCount = 0;
+
 const totalImages = Object.keys(images).length;
 
 function loadImages(callback) {
@@ -40,6 +45,7 @@ function loadImages(callback) {
   });
 }
 
+// ========================== classes =======================
 class Player {
   constructor() {
     this.width = 70;
@@ -100,7 +106,7 @@ class Eggs {
   constructor({ position }) {
     this.position = {
       x: position.x,
-      y: 100,
+      y: position.y,
     };
     this.velocity = {
       x: 0,
@@ -129,10 +135,10 @@ class Eggs {
     this.position.y += this.velocity.y;
   }
 }
-
+// =========================== Bullets ====================
 class Bullets {
-  constructor(position) {
-    this.position = position;
+  constructor({ position }) {
+    this.position = { ...position };
     this.velocity = {
       x: 0,
       y: -15,
@@ -153,6 +159,44 @@ class Bullets {
     this.draw();
     this.position.x += this.velocity.x;
     this.position.y += this.velocity.y;
+  }
+}
+class BigBullets {
+  constructor({ position }) {
+    this.position = {
+      x: position.x,
+      y: position.y,
+    };
+    this.xVelocity = Math.floor(Math.random() * 2) == 1 ? -2 : 2;
+
+    this.velocity = {
+      x: this.xVelocity,
+      y: 1,
+    };
+    this.radius = 5;
+
+    this.speed = 10;
+    this.width = 100;
+    this.height = 60;
+    this.img = loadedImages.silverEgg;
+  }
+
+  draw() {
+    c.drawImage(
+      this.img,
+      this.position.x - this.width / 2,
+      this.position.y - this.height / 2,
+      this.width,
+      this.height,
+    );
+  }
+  update() {
+    this.draw();
+    this.position.x += this.velocity.x;
+    this.position.y += this.velocity.y;
+    if (this.position.x + this.width >= canvas.width || this.position.x < 0) {
+      this.velocity.x = -this.velocity.x;
+    }
   }
 }
 
@@ -227,12 +271,13 @@ class Grid {
 }
 
 class Particles {
-  constructor({ position, velocity, radius }) {
+  constructor({ position, velocity, radius, color }) {
     this.position = { ...position };
     this.velocity = { ...velocity };
     this.radius = radius;
     this.speed = 10;
     this.opacity = 1;
+    this.color = color;
   }
 
   draw() {
@@ -240,7 +285,7 @@ class Particles {
     c.globalAlpha = this.opacity;
     c.beginPath();
     c.arc(this.position.x, this.position.y, this.radius, 0, Math.PI * 2);
-    c.fillStyle = "red";
+    c.fillStyle = this.color;
     c.fill();
     c.closePath();
     c.restore();
@@ -250,10 +295,10 @@ class Particles {
     this.draw();
     this.position.x += this.velocity.x;
     this.position.y += this.velocity.y;
-    this.opacity -= 0.01;
+    this.opacity -= 0.02;
   }
 }
-// collision detection both axis ========================================
+// ============================= COLLISION DETECTION BOTH AXIS ========================================
 
 function bulletHitsInvader(bullet, invader) {
   return (
@@ -264,17 +309,19 @@ function bulletHitsInvader(bullet, invader) {
   );
 }
 
-function eggsHitsPlayer(egg, player) {
+function projectileHitsPlayer(projectile, player) {
   return (
-    egg.position.x + egg.radius >= player.position.x &&
-    egg.position.x - egg.radius <= player.position.x + player.width &&
-    egg.position.y + egg.radius >= player.position.y &&
-    egg.position.y - egg.radius <= player.position.y + player.height
+    projectile.position.x + projectile.radius >= player.position.x &&
+    projectile.position.x - projectile.radius <=
+      player.position.x + player.width &&
+    projectile.position.y + projectile.radius >= player.position.y &&
+    projectile.position.y - projectile.radius <=
+      player.position.y + player.height
   );
 }
 //  ============================= PARTICLE EFFECT LOOP =======================================
 
-function createParticleEffect({ object }) {
+function createParticleEffect({ object, color }) {
   for (let i = 0; i < 15; i++) {
     ParticlesArray.push(
       new Particles({
@@ -287,9 +334,22 @@ function createParticleEffect({ object }) {
           y: (Math.random() - 0.5) * 2,
         },
         radius: Math.random() * 2,
+        color: color,
       }),
     );
   }
+}
+//  ============================= SHOOTING BULLET =======================================
+
+function shootBullets(player) {
+  BulletArray.push(
+    new Bullets({
+      position: {
+        x: player.position.x + player.width / 2,
+        y: player.position.y + 20,
+      },
+    }),
+  );
 }
 
 //  ============================= SCREENS =======================================
@@ -342,12 +402,15 @@ const keys = {
 let gamePaused = false;
 const gridsArray = [];
 const BulletArray = [];
+const BigBulletsArray = [];
 const EggsArray = [];
 const ParticlesArray = [];
 let frames = 0;
 let randomInterval = Math.floor(Math.random() * 500 + 50);
 let eggInterval = 50;
+let bigBulletInterval = 200;
 let game = { over: false, active: true, pause: false };
+let powerUp = true;
 let player;
 
 // ================================= RESTART ===================================
@@ -355,13 +418,16 @@ let player;
 function resetGame() {
   score = 0;
   scoreEl.textContent = "Score: 0";
+
   Object.values(keys).forEach((key) => (key.pressed = false));
+
   player = new Player();
   player.opacity = 1;
 
   gridsArray.length = 0;
   BulletArray.length = 0;
   EggsArray.length = 0;
+  BigBulletsArray.length = 0;
   ParticlesArray.length = 0;
 
   frames = 0;
@@ -373,8 +439,8 @@ function resetGame() {
   gridsArray.push(new Grid());
   animate();
 }
-
 // ================================= GAME LOOP ===================================
+
 function animate() {
   if (!game.active) {
     gameOverScreen();
@@ -392,12 +458,12 @@ function animate() {
 
   BulletArray.forEach((bullet) => bullet.draw());
   EggsArray.forEach((egg) => egg.draw());
+  BigBulletsArray.forEach((bigBullet) => bigBullet.update());
   player.draw();
 
   // USE OVERLAY (visual only)
   if (game.pause) {
     gamePauseScreen();
-
     return;
   }
 
@@ -418,9 +484,12 @@ function animate() {
     }
     particle.update();
   });
+
   if (gridsArray.length === 0) {
     gridsArray.push(new Grid());
   }
+
+ 
 
   gridsArray.forEach((grid, gridIdx) => {
     grid.update();
@@ -439,6 +508,20 @@ function animate() {
       );
     }
 
+    if (frames % bigBulletInterval === 0 && grid.invaders.length > 0) {
+      const randomInvader =
+        grid.invaders[Math.floor(Math.random() * grid.invaders.length)];
+
+      BigBulletsArray.push(
+        new BigBullets({
+          position: {
+            x: randomInvader.position.x + randomInvader.width / 2,
+            y: randomInvader.position.y + randomInvader.height,
+          },
+        }),
+      );
+    }
+
     for (let i = grid.invaders.length - 1; i >= 0; i--) {
       const invader = grid.invaders[i];
       invader.update({ velocity: grid.velocity });
@@ -448,7 +531,7 @@ function animate() {
         if (bulletHitsInvader(bullet, invader)) {
           grid.invaders.splice(i, 1);
           BulletArray.splice(j, 1);
-          createParticleEffect({ object: invader });
+          createParticleEffect({ object: invader, color: "red" });
           addScore();
         }
       }
@@ -462,12 +545,14 @@ function animate() {
   BulletArray.forEach((bullet, i) => {
     if (bullet.position.y + bullet.radius < 0) {
       BulletArray.splice(i, 1);
-    } else bullet.update();
+    } else {
+      bullet.update();
+    }
   });
 
   EggsArray.forEach((egg, i) => {
-    if (eggsHitsPlayer(egg, player)) {
-      createParticleEffect({ object: player });
+    if (projectileHitsPlayer(egg, player)) {
+      createParticleEffect({ object: player, color: "blue" });
       EggsArray.splice(i, 1);
       player.opacity = 0;
       game.over = true;
@@ -482,19 +567,47 @@ function animate() {
     }
   });
 
+  BigBulletsArray.forEach((bigBullet, i) => {
+    if (projectileHitsPlayer(bigBullet, player)) {
+      createParticleEffect({ object: player });
+      BigBulletsArray.splice(i, 1);
+      player.opacity = 0;
+      game.over = true;
+      setTimeout(() => {
+        game.active = false;
+      }, 2000);
+    }
+    if (bigBullet.position.y > canvas.height) {
+      BigBulletsArray.splice(i, 1);
+    } else {
+      bigBullet.update();
+    }
+  });
+
   frames++;
 }
 
+function startGame() {
+  startGameScreenEl.style.display = "none";
+  animate();
+}
+
+function displayStartGameScreen() {
+  startGameScreenEl.style.display = "flex";
+}
 // ================================ STARTING =====================================
+
 loadImages(() => {
   loadingScreen.style.display = "none";
   player = new Player();
-  animate();
+  displayStartGameScreen();
+  // animate();
 });
 
 //==================================== LISTENER ===================================
+
 window.addEventListener("keydown", ({ key }) => {
-  if (key === "r" && game.over) {
+  if (key === "r" && game.over && !game.active) {
     resetGame();
     return;
   }
@@ -538,12 +651,7 @@ window.addEventListener("keyup", ({ key }) => {
       keys.ArrowDown.pressed = false;
       break;
     case " ":
-      BulletArray.push(
-        new Bullets({
-          x: player.position.x + player.width / 2,
-          y: player.position.y + 20,
-        }),
-      );
+      shootBullets(player);
       break;
   }
 });
