@@ -3,6 +3,7 @@ const c = canvas.getContext("2d");
 
 canvas.width = innerWidth;
 canvas.height = innerHeight;
+const isTouchDevice = "ontouchstart" in window || navigator.maxTouchPoints > 0;
 
 const loadingScreen = document.getElementById("loading");
 const scoreEl = document.getElementById("score");
@@ -451,6 +452,11 @@ function animate() {
   // clear
   c.clearRect(0, 0, canvas.width, canvas.height);
 
+  // Shooting bullets for touch devices
+  if (isTouchDevice && frames % 15 === 0) {
+    shootBullets(player);
+  }
+
   // DRAWING EVERYTHING
   gridsArray.forEach((grid) => {
     grid.invaders.forEach((invader) => invader.draw());
@@ -488,8 +494,6 @@ function animate() {
   if (gridsArray.length === 0) {
     gridsArray.push(new Grid());
   }
-
- 
 
   gridsArray.forEach((grid, gridIdx) => {
     grid.update();
@@ -654,4 +658,27 @@ window.addEventListener("keyup", ({ key }) => {
       shootBullets(player);
       break;
   }
+});
+
+// ================================ TOUCH CONTROLS ===================================
+let isDragging = false;
+
+canvas.addEventListener("touchstart", (e) => {
+  isDragging = true;
+  if (e.touches.length > 1) {
+    animate();
+  }
+});
+
+canvas.addEventListener("touchmove", (e) => {
+  if (!isDragging) return;
+
+  const touch = e.touches[0];
+  const rect = canvas.getBoundingClientRect();
+
+  player.position.x = touch.clientX - rect.left;
+});
+
+canvas.addEventListener("touchend", () => {
+  isDragging = false;
 });
