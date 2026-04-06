@@ -371,13 +371,21 @@ function gameOverScreen() {
   c.fillRect(0, 0, canvas.width, canvas.height);
   c.fillStyle = "white";
   c.font = "40px sans-serif";
+
   c.fillText(`SCORE ${score}`, canvas.width / 2 - 100, canvas.height / 2 - 100);
 
   c.fillText("GAME OVER", canvas.width / 2 - 70, canvas.height / 2);
+
   c.fillText(
     "press R for RESTART",
     canvas.width / 2 - 200,
     canvas.height / 2 + 100,
+  );
+
+  c.fillText(
+    "OR Double Tap for RESTART",
+    canvas.width / 2 - 200,
+    canvas.height / 2 + 200,
   );
 }
 
@@ -408,8 +416,8 @@ const EggsArray = [];
 const ParticlesArray = [];
 let frames = 0;
 let randomInterval = Math.floor(Math.random() * 500 + 50);
-let eggInterval = 50;
-let bigBulletInterval = 200;
+let eggInterval = isTouchDevice ? 150 : 50;
+let bigBulletInterval = isTouchDevice ? 450 : 200;
 let game = { over: false, active: true, pause: false };
 let powerUp = true;
 let player;
@@ -605,7 +613,6 @@ loadImages(() => {
   loadingScreen.style.display = "none";
   player = new Player();
   displayStartGameScreen();
-  // animate();
 });
 
 //==================================== LISTENER ===================================
@@ -661,22 +668,34 @@ window.addEventListener("keyup", ({ key }) => {
 });
 
 // ================================ TOUCH CONTROLS ===================================
+
 let isDragging = false;
+let lastTap = 0;
 
 canvas.addEventListener("touchstart", (e) => {
   isDragging = true;
-  if (e.touches.length > 1) {
-    animate();
+
+  const currentTime = new Date().getTime();
+  const tapGap = currentTime - lastTap;
+
+
+  if (tapGap < 300 && tapGap > 0) {
+    if (game.over) {
+      resetGame();
+    }
   }
+
+  lastTap = currentTime;
 });
 
 canvas.addEventListener("touchmove", (e) => {
   if (!isDragging) return;
 
   const touch = e.touches[0];
+
   const rect = canvas.getBoundingClientRect();
 
-  player.position.x = touch.clientX - rect.left;
+  player.position.x = touch.clientX;
 });
 
 canvas.addEventListener("touchend", () => {
